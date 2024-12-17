@@ -26,28 +26,75 @@ def extract_image(image_path):
     return pytesseract.image_to_string(image)
 
 # Function to extract text from pdf
-def extract_pdf(pdf_path):
+def extract_pdf(pdf_path, pages_input):
     from PyPDF2 import PdfReader
+    
+    def parse_page_range(pages_input):
+        pages = set()
+        if not pages_input:
+            return None  # Process all pages if no input
+        for part in pages_input.split(','):
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                pages.update(range(start - 1, end))  # Page numbers are 0-based
+            else:
+                pages.add(int(part) - 1)  # Single page
+        return sorted(pages)
+
+    pages_to_extract = parse_page_range(pages_input)
     text = ""
     with open(pdf_path, 'rb') as f:
         reader = PdfReader(f)
-        for page in reader.pages:
-            text += page.extract_text()
+        total_pages = len(reader.pages)
+        
+        if pages_to_extract:
+            pages_to_extract = [p for p in pages_to_extract if p < total_pages]  # Avoid invalid pages
+        else:
+            pages_to_extract = range(total_pages)  # Default: All pages
+        
+        for i in pages_to_extract:
+            text += reader.pages[i].extract_text() or ""  # Extract text safely
     return text
 
+
 # Function to extract text from doc
-def extract_docx(docx_path):
-    text = ""
+def extract_docx(docx_path, pages_input):
     doc = Document(docx_path)
-    for para in doc.paragraphs:
-        text += para.text + "\n"
+    paragraphs = doc.paragraphs
+    
+    if pages_input:
+        start, end = map(int, pages_input.split('-'))
+        paragraphs = paragraphs[start-1:end]  # Slice paragraphs based on range
+    
+    text = "\n".join(para.text for para in paragraphs)
     return text
 
 # Function to extract text from ppt
-def extract_pptx(pptx_path):
+def extract_pptx(pptx_path, pages_input):
+    def parse_page_range(pages_input):
+        pages = set()
+        if not pages_input:
+            return None
+        for part in pages_input.split(','):
+            if '-' in part:
+                start, end = map(int, part.split('-'))
+                pages.update(range(start - 1, end))
+            else:
+                pages.add(int(part) - 1)
+        return sorted(pages)
+
+    pages_to_extract = parse_page_range(pages_input)
     text = ""
     presentation = Presentation(pptx_path)
-    for slide in presentation.slides:
+    total_slides = len(presentation.slides)
+    
+    if pages_to_extract:
+        pages_to_extract = [p for p in pages_to_extract if p < total_slides]
+    else:
+        pages_to_extract = range(total_slides)
+    
+    for i in pages_to_extract:
+        slide = presentation.slides[i]
         for shape in slide.shapes:
             if shape.has_text_frame:
                 text += shape.text + "\n"
@@ -72,6 +119,8 @@ def process():
     try:
         query = request.form.get('query')
         file = request.files.get('file')
+        pages_input = request.form.get('pages')  # Fetch user-specified pages
+        
         if not query and not file:
             return jsonify({'error': 'Please provide a query or file.'}), 400
 
@@ -80,6 +129,7 @@ def process():
         prompt_to_send = ""
         extracted_text = ""  # to prevent uninitialized use
 
+        # Parse task
         if task == 'summarize':
             prompt_to_send = f"Summarize this text:\n{combined_text}"
         elif task == 'question':
@@ -98,13 +148,13 @@ def process():
             file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(file_path)
 
-            # Extract text
+            # Extract text based on file type
             if filename.endswith('.pdf'):
-                extracted_text = extract_pdf(file_path)
+                extracted_text = extract_pdf(file_path, pages_input)
             elif filename.endswith('.docx'):
-                extracted_text = extract_docx(file_path)
+                extracted_text = extract_docx(file_path, pages_input)
             elif filename.endswith('.pptx'):
-                extracted_text = extract_pptx(file_path)
+                extracted_text = extract_pptx(file_path, pages_input)
             elif filename.endswith(('.png', '.jpg', '.jpeg')):
                 extracted_text = extract_image(file_path)
             else:

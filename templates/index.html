@@ -29,7 +29,8 @@
         }
 
         textarea,
-        input[type="file"] {
+        input[type="file"],
+        input[type="text"] {
             width: 100%;
             padding: 10px;
             margin: 10px 0;
@@ -133,6 +134,7 @@ option {
         </select>
         <textarea name="query" placeholder="Type your query here (e.g., 'Summarize this text')" rows="4"></textarea>
         <input type="file" name="file" accept=".pdf, .pptx, .png, .jpg, .jpeg">
+        <input type="text" name="pages" placeholder="Enter page range (e.g., 2-3)" />
         <button type="submit">Submit</button>
     </form>
     <div id="loading">Processing...</div>
