@@ -136,6 +136,7 @@ option {
         <input type="file" name="file" accept=".pdf, .pptx, .png, .jpg, .jpeg">
         <input type="text" name="pages" placeholder="Enter page range (e.g., 2-3)" />
         <button type="submit">Submit</button>
+        <button type="button" id="create-quiz-button">Create a Multiple-Choice Quiz</button>
     </form>
     <div id="loading">Processing...</div>
     <div class="response-container" id="response" style="display: none;">
@@ -181,6 +182,26 @@ option {
                 document.getElementById('loading').style.display = 'none';
             }
         });
+        document.getElementById('create-quiz-button').addEventListener('click', () => {
+    const formData = new FormData(document.getElementById('upload-form'));
+    fetch('/create-quiz', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.error) {
+            alert(`Error: ${result.error}`);
+        } else {
+            localStorage.setItem('quizData', JSON.stringify(result.quizData));
+            window.location.href = '/quiz'; // Redirect to the quiz page
+        }
+    })
+    .catch(error => {
+        alert(`Error: ${error.message}`);
+    });
+});
+
     </script>
 
 </body>

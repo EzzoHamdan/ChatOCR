@@ -7,6 +7,7 @@ import os
 from dotenv import load_dotenv
 import pytesseract
 from PIL import Image
+from PyPDF2 import PdfReader
 
 load_dotenv()
 client = OpenAI(
@@ -27,7 +28,6 @@ def extract_image(image_path):
 
 # Function to extract text from pdf
 def extract_pdf(pdf_path, pages_input):
-    from PyPDF2 import PdfReader
     
     def parse_page_range(pages_input):
         pages = set()
@@ -169,6 +169,78 @@ def process():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+@app.route('/create-quiz', methods=['POST'])
+def create_quiz():
+    try:
+        query = request.form.get('query')
+        file = request.files.get('file')
+        pages_input = request.form.get('pages')
+        combined_text = query or ""
+        
+        if file:
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            # Extract text from the uploaded file
+            if filename.endswith('.pdf'):
+                extracted_text = extract_pdf(file_path, pages_input)
+            elif filename.endswith('.docx'):
+                extracted_text = extract_docx(file_path, pages_input)
+            elif filename.endswith('.pptx'):
+                extracted_text = extract_pptx(file_path, pages_input)
+            elif filename.endswith(('.png', '.jpg', '.jpeg')):
+                extracted_text = extract_image(file_path)
+            else:
+                return jsonify({'error': 'Unsupported file type.'}), 400
+            
+            combined_text += "\n" + extracted_text
+            os.remove(file_path)  # Clean up file
+        
+        # Generate quiz questions using ChatGPT
+        
+        prompt = f"Generate a multiple-choice quiz from the following text:\n{combined_text}\n\n" \
+         "Format each question as follows:\n" \
+         "Question: <Your question here>\n" \
+         "<Option 1>\n" \
+         "<Option 2>\n" \
+         "<Option 3>\n" \
+         "<Option 4>\n" \
+         "Correct: <Correct Option>\n"\
+         "NOTE: No need numbering the options, just write the options as they are.\n"
+
+        quiz_response = chatgpt_response(prompt)
+
+        # Parsing the structured response
+        quiz_data = []
+        for item in quiz_response.strip().split('\n\n'):
+            lines = item.strip().split('\n')
+            question = lines[0].replace("Question: ", "").strip()
+            choices = [line.strip() for line in lines[1:5]]
+            correct = lines[-1].replace("Correct: ", "").strip()
+            quiz_data.append({
+                "question": question,
+                "choices": choices,
+                "correct": correct
+            })
+
+        # Output the parsed data
+        for entry in quiz_data:
+            print(f"Question: {entry['question']}")
+            print("Choices:")
+            for choice in entry['choices']:
+                print(f"  {choice}")
+            print(f"Correct Answer: {entry['correct']}\n")
+        
+        # Return the generated quiz data
+        return jsonify({'quizData': quiz_data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/quiz')
+def quiz():
+    return render_template('quiz.html')
 
 # Run the Flask app
 if __name__ == '__main__':
