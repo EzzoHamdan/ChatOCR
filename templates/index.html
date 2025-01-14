@@ -136,7 +136,6 @@ option {
         <input type="file" name="file" accept=".pdf, .pptx, .png, .jpg, .jpeg">
         <input type="text" name="pages" placeholder="Enter page range (e.g., 2-3)" />
         <button type="submit">Submit</button>
-        <button type="button" id="create-quiz-button">Create a Multiple-Choice Quiz</button>
     </form>
     <div id="loading">Processing...</div>
     <div class="response-container" id="response" style="display: none;">
@@ -147,66 +146,41 @@ option {
     </div>
 
     <script>
-        async function handleFormSubmit(event) {
-            event.preventDefault();
-            const loadingIndicator = document.getElementById('loading');
-            const responseContainer = document.getElementById('response');
-            const promptElement = document.getElementById('prompt');
-            const aiResponseElement = document.getElementById('ai-response');
-            loadingIndicator.style.display = 'block';
-    
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            document.getElementById('loading').style.display = 'block';
+
+            const formData = new FormData(e.target);
             try {
-                const formData = new FormData(event.target);
                 const response = await fetch('/process', {
                     method: 'POST',
-                    body: formData,
+                    body: formData
                 });
                 const result = await response.json();
-    
-                responseContainer.style.display = 'block';
+                const responseContainer = document.getElementById('response');
+                const promptElement = document.getElementById('prompt');
+                const aiResponseElement = document.getElementById('ai-response');
+
                 if (result.error) {
+                    responseContainer.style.display = 'block';
                     promptElement.innerText = `Error: ${result.error}`;
                     aiResponseElement.innerText = '';
                 } else {
+                    responseContainer.style.display = 'block';
                     promptElement.innerText = result.prompt;
                     aiResponseElement.innerText = result.response;
                 }
             } catch (error) {
+                const responseContainer = document.getElementById('response');
+                const promptElement = document.getElementById('prompt');
+                const aiResponseElement = document.getElementById('ai-response');
                 responseContainer.style.display = 'block';
                 promptElement.innerText = `Error: ${error.message}`;
                 aiResponseElement.innerText = '';
             } finally {
-                loadingIndicator.style.display = 'none';
+                document.getElementById('loading').style.display = 'none';
             }
-        }
-    
-        async function handleQuizCreation() {
-            const loadingIndicator = document.getElementById('loading');
-            loadingIndicator.style.display = 'block';
-    
-            try {
-                const formData = new FormData(document.getElementById('upload-form'));
-                const response = await fetch('/create-quiz', {
-                    method: 'POST',
-                    body: formData,
-                });
-                const result = await response.json();
-    
-                if (result.error) {
-                    alert(`Error: ${result.error}`);
-                } else {
-                    localStorage.setItem('quizData', JSON.stringify(result.quizData));
-                    window.location.href = '/quiz'; // Redirect to the quiz page
-                }
-            } catch (error) {
-                alert(`Error: ${error.message}`);
-            } finally {
-                loadingIndicator.style.display = 'none';
-            }
-        }
-    
-        document.getElementById('upload-form').addEventListener('submit', handleFormSubmit);
-        document.getElementById('create-quiz-button').addEventListener('click', handleQuizCreation);
+        });
     </script>
     
 

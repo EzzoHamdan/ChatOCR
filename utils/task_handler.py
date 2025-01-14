@@ -41,17 +41,3 @@ def generate_prompt(task, query, extracted_text):
     elif task == 'inquiry':
         prompt_to_send = f"Follow the instructions given with the text:\n{extracted_text}"
     return prompt_to_send
-
-def parse_quiz_response(quiz_response):
-    quiz_data = []
-    for item in quiz_response.strip().split('\n\n'):
-        lines = item.strip().split('\n')
-        question = lines[0].replace("Question: ", "").strip()
-        choices = [line.strip() for line in lines[1:5]]
-        correct = lines[-1].replace("Correct: ", "").strip()
-        quiz_data.append({
-            "question": question,
-            "choices": choices,
-            "correct": correct
-        })
-    return quiz_data
